@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Document</title>
+    <style>
+      html,
+      body,
+      .geolonia,
+      #map {
+        width: 100%;
+        height: 100%;
+      }
+
+      html,
+      body {
+        padding: 0;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script
+      type="text/javascript"
+      src="https://api.geolonia.com/v1/embed?geolonia-api-key=78a3562da5f941a9b77cb067ee243fa2"
+    ></script>
+    <script src="https://npmcdn.com/@turf/turf/turf.min.js"></script>
+    <script>
+      const container = document.getElementById("map");
+      const map = new window.geolonia.Map(container);
+      const geolocateControl = new mapboxgl.GeolocateControl({
+        positionOptions: {
+          enableHighAccuracy: true
+        },
+        trackUserLocation: true
+      });
+      map.addControl(geolocateControl);
+
+      const offices = [
+        {
+          label: "米原市役所米原庁舎",
+          coords: [136.284, 35.316]
+        },
+        {
+          label: "米原市役所山東庁舎",
+          coords: [136.37, 35.362]
+        },
+        {
+          label: "米原市役所近江庁舎",
+          coords: [136.304, 35.337]
+        },
+        {
+          label: "米原市役所伊吹庁舎",
+          coords: [136.378, 35.386]
+        }
+      ];
+
+      const getCurrentPosition = () =>
+        new Promise((resolve, reject) => {
+          window.navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 30000,
+            maximumAge: 0
+          });
+        });
+
+      getCurrentPosition()
+        .then(({ coords: { latitude: lat, longitude: lng } }) => {
+          return [lng, lat];
+        })
+        .then(coords => {
+          const { office: nearist, distance, popup } = offices.reduce(
+            (prev, office) => {
+              const popup = new mapboxgl.Popup()
+                .setLngLat(office.coords)
+                .setHTML(office.label)
+                .addTo(map);
+
+              // calculate nearist
+              const from = turf.point(coords);
+              const into = turf.point(office.coords);
+              const distance = turf.distance(from, into);
+
+              if (prev && prev.distance < distance) {
+                return { office, distance: prev.distance, popup: prev.popup };
+              } else {
+                return { office, distance, popup };
+              }
+            },
+            null
+          );
+          popup._container.setAttribute("style", "color: red");
+          return { nearist, distance };
+        })
+        .then(({ nearist }) => map.setZoom(15).panTo(nearist.coords))
+        .catch(console.error);
+    </script>
+  </body>
+</html>
